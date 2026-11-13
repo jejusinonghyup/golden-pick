@@ -97,6 +97,7 @@ canvas { display: block; width: 100%; aspect-ratio: 4 / 5; max-width: 100%; touc
 .chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); }
 .chip.gold { border-color: var(--gold); background: var(--gold-soft); }
 .chip.sp { border-color: var(--orange); }
+.chip.bad { border-color: var(--alert); color: var(--alert); }
 .fld { display: grid; grid-template-columns: 5.2em 1fr; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
 .fld input { font: 500 16px var(--font-body); padding: 9px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); min-width: 0; width: 100%; }
 .fld input:focus-visible { outline: 3px solid var(--orange); outline-offset: 1px; }
@@ -238,7 +239,7 @@ html.p916 .head { position: relative; z-index: 25; }
       <div class="card">
         <h2 id="hTitle">15초 안에 50점!</h2>
         <p>떨어지는 농산물을 터치(클릭)해서 <b class="gt">50</b>점 이상 모으면 <b>미션 성공</b>! 시간이 갈수록 빨라져요.</p>
-        <div class="chips"><span class="chip" id="chN">농산물 1점</span><span class="chip gold" id="chG">황금 5점</span><span class="chip sp" id="chS">스페셜 상품 10점</span></div>
+        <div class="chips"><span class="chip" id="chN">농산물 1점</span><span class="chip gold" id="chG">황금 5점</span><span class="chip sp" id="chS">스페셜 상품 10점</span><span class="chip bad" id="chB">⚠ 방해물 -3점</span></div>
         <label class="fld"><span>이름(선택)</span><input id="inName" type="text" maxlength="8" autocomplete="off" placeholder="비워도 시작돼요"></label>
         <button class="btn" id="btnStart" type="button">게임 시작 (Space)</button>
       </div>
@@ -267,6 +268,7 @@ html.p916 .head { position: relative; z-index: 25; }
 
   <dl class="rules">
     <dt>미션</dt><dd><b class="gd">15</b>초 안에 <b class="gt">50</b>점 이상 모으면 성공! (창립 50주년 기념)</dd>
+    <dt>방해물</dt><dd id="ruleBad">비닐봉지·농약병·장화·생선처럼 농산물이 아닌 물건은 누르면 감점돼요. 그냥 떨어지게 두면 괜찮아요!</dd>
     <dt>점수</dt><dd id="ruleScore">농산물 1점, 황금 농산물 5점이에요.</dd>
     <dt>스페셜 상품</dt><dd id="ruleSp">위탁가공 상품 3종(골드키위 양갱·레몬100·발라먹차)이 가끔 떨어져요. 따면 특별 효과와 함께 10점!</dd>
     <dt>속도</dt><dd id="ruleSpd">시간이 지날수록 한 단계씩 빨라져요. 5단계가 가장 빨라요.</dd>
@@ -306,9 +308,9 @@ html.p916 .head { position: relative; z-index: 25; }
   var Q = new URLSearchParams(location.search);
   var SKEY = 'gp50_settings';
   var DEFAULTS = { time: 15, target: 50, levels: 5, startSpeed: 100, stepPct: 22, spawn: 0.42, goldPct: 12,
-    ptsN: 1, ptsG: 5, ptsS: 10, specialOn: true, specialGap: 6, lifeOn: true, missN: 5, missG: 8, healG: 6, healS: 10, rot: 0, pin: '0000' };
+    ptsN: 1, ptsG: 5, ptsS: 10, specialOn: true, specialGap: 6, lifeOn: true, missN: 5, missG: 8, healG: 6, healS: 10, badOn: true, badPct: 15, badPts: 3, badLife: 8, rot: 0, pin: '0000' };
   var LIMITS = { time: [5, 300, 1], target: [1, 9999, 1], levels: [1, 10, 1], startSpeed: [40, 300, 5], stepPct: [0, 100, 1], spawn: [0.15, 2, 0.01], goldPct: [0, 60, 1],
-    ptsN: [1, 99, 1], ptsG: [1, 99, 1], ptsS: [1, 999, 1], specialGap: [2, 30, 1], missN: [0, 50, 1], missG: [0, 50, 1], healG: [0, 50, 1], healS: [0, 50, 1] };
+    ptsN: [1, 99, 1], ptsG: [1, 99, 1], ptsS: [1, 999, 1], specialGap: [2, 30, 1], missN: [0, 50, 1], missG: [0, 50, 1], healG: [0, 50, 1], healS: [0, 50, 1], badPct: [0, 50, 1], badPts: [0, 99, 1], badLife: [0, 50, 1] };
   var S = {};
   function loadSettings() {
     var o = {}; try { o = JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) {}
@@ -317,9 +319,9 @@ html.p916 .head { position: relative; z-index: 25; }
   }
   function clampSettings(o) {
     Object.keys(LIMITS).forEach(function (k) { var l = LIMITS[k], v = +o[k]; if (!isFinite(v)) v = DEFAULTS[k]; o[k] = Math.min(l[1], Math.max(l[0], v)); });
-    ['time', 'target', 'levels', 'ptsN', 'ptsG', 'ptsS', 'specialGap', 'missN', 'missG', 'healG', 'healS', 'goldPct', 'startSpeed', 'stepPct'].forEach(function (k) { o[k] = Math.round(o[k]); });
+    ['time', 'target', 'levels', 'ptsN', 'ptsG', 'ptsS', 'specialGap', 'missN', 'missG', 'healG', 'healS', 'goldPct', 'startSpeed', 'stepPct', 'badPct', 'badPts', 'badLife'].forEach(function (k) { o[k] = Math.round(o[k]); });
     o.spawn = Math.round(o.spawn * 100) / 100;
-    o.specialOn = !!o.specialOn; o.lifeOn = !!o.lifeOn; o.rot = (+o.rot === 90 || +o.rot === 270) ? +o.rot : 0;
+    o.specialOn = !!o.specialOn; o.lifeOn = !!o.lifeOn; o.badOn = !!o.badOn; o.rot = (+o.rot === 90 || +o.rot === 270) ? +o.rot : 0;
     if (!/^\d{4,8}$/.test(String(o.pin))) o.pin = DEFAULTS.pin; else o.pin = String(o.pin);
   }
   function saveSettings() { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} }
@@ -370,6 +372,7 @@ html.p916 .head { position: relative; z-index: 25; }
     o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + d + 0.02);
   }
   var sfx = {
+    bad: function () { tone(140, 0.22, 'sawtooth', 0.13); tone(95, 0.3, 'square', 0.09, 0.08); },
     pick: function (c) { tone(520 + Math.min(c, 24) * 18, 0.09, 'triangle', 0.1); },
     gold: function () { tone(784, 0.1, 'triangle', 0.12); tone(1175, 0.16, 'triangle', 0.1, 0.07); },
     miss: function () { tone(150, 0.2, 'sawtooth', 0.09); },
@@ -396,7 +399,7 @@ html.p916 .head { position: relative; z-index: 25; }
   var state = 'ready';
   var fruits = [], parts = [], floats = [], preview = [], rings = [], rays = [];
   var score = 0, elapsed = 0, spawnT = 0, specialT = 0, last = 0, nextId = 1, lastLevel = 1, life = 100, flash = 0;
-  var combo = 0, maxCombo = 0, hits = 0, mask = 0, everMask = 0, setCount = 0, queue = [];
+  var badHits = 0, combo = 0, maxCombo = 0, hits = 0, mask = 0, everMask = 0, setCount = 0, queue = [];
   var flashW = 0, shake = 0, slow = 0, banner = null, lvFx = null, lastMult = 1;
 
   function baseR() { return Math.max(22, Math.min(34, W * 0.075)); }
@@ -409,9 +412,9 @@ html.p916 .head { position: relative; z-index: 25; }
 
   function buildPreview() {
     var r = baseR();
-    var spec = [[0.16, 0.26, 'carrot', 0], [0.78, 0.2, 'lemon', 0], [0.5, 0.52, 'hallabong', 1], [0.88, 0.66, 'radish', 0], [0.2, 0.74, 'broccoli', 0], [0.6, 0.86, 'kiwi', 0]];
+    var spec = [[0.16, 0.26, 'carrot', 0], [0.34, 0.56, 'tire', 2], [0.78, 0.2, 'lemon', 0], [0.5, 0.52, 'hallabong', 1], [0.88, 0.66, 'radish', 0], [0.2, 0.74, 'broccoli', 0], [0.6, 0.86, 'kiwi', 0]];
     preview = spec.map(function (s, i) {
-      return { x: s[0] * W, y: s[1] * H, r: s[3] ? r * 0.92 : r, type: s[3] ? 'gold' : 'normal', kind: s[2], rot: (i - 2) * 0.18, id: i };
+      return { x: s[0] * W, y: s[1] * H, r: s[3] === 1 ? r * 0.92 : r, type: s[3] === 1 ? 'gold' : (s[3] === 2 ? 'bad' : 'normal'), kind: s[2], rot: (i - 2) * 0.18, id: i };
     });
     var sz = specialSize();
     preview.push({ x: W * 0.8, y: H * 0.42, special: true, idx: 0, w: sz.w, h: sz.h, r: sz.h / 2, rot: 0.12, id: 99, type: 'special' });
@@ -430,6 +433,7 @@ html.p916 .head { position: relative; z-index: 25; }
   }
 
   /* ---------- 그리기: 농산물 ---------- */
+  var BADS = ['tire', 'can', 'boot', 'bag', 'bottle', 'fish'];
   var KINDS = ['mikan', 'hallabong', 'carrot', 'radish', 'broccoli', 'lemon', 'kiwi'];
   function pcol(kind) {
     return kind === 'carrot' ? '#FF7A2A' : kind === 'radish' ? '#E8EFE2' : kind === 'broccoli' ? '#3E9B54' : kind === 'lemon' ? '#F7D416' : kind === 'kiwi' ? '#7DB93A' : C.orange;
@@ -442,8 +446,73 @@ html.p916 .head { position: relative; z-index: 25; }
   }
   function leafAt(x, y, rx, ry, rot) { ctx.fillStyle = C.leaf; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); ctx.fill(); }
 
+  /* 방해물(농산물이 아닌 물건) */
+  function drawBad(kind, r) {
+    var i;
+    if (kind === 'tire') {
+      var g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.2, 0, 0, r * 1.05); g.addColorStop(0, '#555'); g.addColorStop(1, '#161616');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#7a7a7a'; ctx.lineWidth = Math.max(2, r * 0.09);
+      for (i = 0; i < 16; i++) { var a = i / 16 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82); ctx.lineTo(Math.cos(a) * r * 0.98, Math.sin(a) * r * 0.98); ctx.stroke(); }
+      ctx.fillStyle = '#B9BEC4'; ctx.beginPath(); ctx.arc(0, 0, r * 0.52, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6F767D'; ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#D5D9DD'; for (i = 0; i < 5; i++) { var b = i / 5 * Math.PI * 2; ctx.beginPath(); ctx.arc(Math.cos(b) * r * 0.4, Math.sin(b) * r * 0.4, r * 0.05, 0, Math.PI * 2); ctx.fill(); }
+    } else if (kind === 'can') {
+      var w = r * 1.15, h = r * 1.55, g2 = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+      g2.addColorStop(0, '#9AA0A6'); g2.addColorStop(0.35, '#F1F3F4'); g2.addColorStop(1, '#8A9096');
+      ctx.fillStyle = g2; ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.fillStyle = '#C8302F'; ctx.fillRect(-w / 2, -h * 0.18, w, h * 0.34);
+      ctx.fillStyle = '#fff'; ctx.fillRect(-w / 2, -h * 0.05, w, h * 0.06);
+      ctx.fillStyle = '#B9BEC4'; ctx.beginPath(); ctx.ellipse(0, -h / 2, w / 2, r * 0.17, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7C8288'; ctx.beginPath(); ctx.ellipse(0, -h / 2, w * 0.28, r * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#9AA0A6'; ctx.beginPath(); ctx.ellipse(0, h / 2, w / 2, r * 0.15, 0, 0, Math.PI); ctx.fill();
+    } else if (kind === 'boot') {
+      ctx.fillStyle = '#2F3B45'; ctx.beginPath();
+      ctx.moveTo(-r * 0.42, -r * 0.95); ctx.lineTo(r * 0.18, -r * 0.95); ctx.lineTo(r * 0.18, r * 0.2); ctx.quadraticCurveTo(r * 0.2, r * 0.45, r * 0.95, r * 0.5);
+      ctx.lineTo(r * 0.95, r * 0.95); ctx.lineTo(-r * 0.42, r * 0.95); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1B232A'; ctx.fillRect(-r * 0.42, r * 0.78, r * 1.37, r * 0.17);
+      ctx.fillStyle = '#5B6B77'; ctx.fillRect(-r * 0.42, -r * 0.95, r * 0.6, r * 0.16);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-r * 0.3, -r * 0.7, r * 0.1, r * 1.3);
+    } else if (kind === 'bag') { /* 비닐봉지 */
+      ctx.strokeStyle = '#C9D3DA'; ctx.lineWidth = Math.max(2, r * 0.1);
+      ctx.beginPath(); ctx.arc(-r * 0.28, -r * 0.62, r * 0.3, Math.PI * 0.95, Math.PI * 2.05); ctx.stroke();
+      ctx.beginPath(); ctx.arc(r * 0.28, -r * 0.62, r * 0.3, Math.PI * 0.95, Math.PI * 2.05); ctx.stroke();
+      var gb = ctx.createRadialGradient(-r * 0.3, -r * 0.1, r * 0.1, 0, 0.1 * r, r * 1.1); gb.addColorStop(0, '#FFFFFF'); gb.addColorStop(0.6, '#E6EDF2'); gb.addColorStop(1, '#AEBBC5');
+      ctx.fillStyle = gb; ctx.beginPath(); ctx.moveTo(-r * 0.5, -r * 0.5);
+      ctx.bezierCurveTo(-r * 1.05, -r * 0.05, -r * 0.95, r * 0.95, -r * 0.1, r * 0.95);
+      ctx.bezierCurveTo(r * 0.95, r * 0.98, r * 1.05, -r * 0.05, r * 0.5, -r * 0.5);
+      ctx.quadraticCurveTo(0, -r * 0.35, -r * 0.5, -r * 0.5); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(80,100,115,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-r * 0.4, -r * 0.2); ctx.quadraticCurveTo(-r * 0.5, r * 0.3, -r * 0.25, r * 0.7); ctx.stroke();
+      ctx.strokeStyle = 'rgba(80,100,115,0.3)'; ctx.beginPath(); ctx.moveTo(r * 0.15, -r * 0.3); ctx.lineTo(r * 0.3, r * 0.5); ctx.moveTo(-r * 0.05, -r * 0.25); ctx.lineTo(0, r * 0.3); ctx.stroke();
+    } else if (kind === 'bottle') { /* 농약병 */
+      var bw = r * 1.0, bh = r * 1.0, gbt = ctx.createLinearGradient(-bw / 2, 0, bw / 2, 0); gbt.addColorStop(0, '#5A3A1C'); gbt.addColorStop(0.35, '#9A6A35'); gbt.addColorStop(1, '#4A2E15');
+      ctx.fillStyle = gbt; ctx.beginPath(); ctx.moveTo(-bw / 2, r * 0.95); ctx.lineTo(-bw / 2, -r * 0.1);
+      ctx.quadraticCurveTo(-bw / 2, -r * 0.4, -r * 0.2, -r * 0.5); ctx.lineTo(-r * 0.2, -r * 0.8); ctx.lineTo(r * 0.2, -r * 0.8); ctx.lineTo(r * 0.2, -r * 0.5);
+      ctx.quadraticCurveTo(bw / 2, -r * 0.4, bw / 2, -r * 0.1); ctx.lineTo(bw / 2, r * 0.95); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#D8362F'; ctx.fillRect(-r * 0.26, -r * 1.0, r * 0.52, r * 0.24);
+      ctx.fillStyle = '#F6F3EA'; ctx.fillRect(-bw / 2, r * 0.05, bw, r * 0.62);
+      ctx.fillStyle = '#D8362F'; ctx.save(); ctx.translate(0, r * 0.36); ctx.rotate(Math.PI / 4); ctx.fillRect(-r * 0.17, -r * 0.17, r * 0.34, r * 0.34); ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.fillRect(-r * 0.03, r * 0.26, r * 0.06, r * 0.12); ctx.fillRect(-r * 0.03, r * 0.42, r * 0.06, r * 0.06);
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(-bw / 2 + r * 0.08, -r * 0.2, r * 0.08, r * 0.2);
+    } else { /* 생선 */
+      var gf = ctx.createLinearGradient(0, -r * 0.55, 0, r * 0.55); gf.addColorStop(0, '#46698C'); gf.addColorStop(0.5, '#A9C0D3'); gf.addColorStop(1, '#EEF3F7');
+      ctx.fillStyle = '#3F5F80'; ctx.beginPath(); ctx.moveTo(r * 0.62, 0); ctx.lineTo(r * 1.18, -r * 0.55); ctx.lineTo(r * 1.1, 0); ctx.lineTo(r * 1.18, r * 0.55); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-r * 0.2, -r * 0.5); ctx.lineTo(r * 0.15, -r * 0.82); ctx.lineTo(r * 0.45, -r * 0.45); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = gf; ctx.beginPath(); ctx.ellipse(-r * 0.08, 0, r * 0.95, r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(40,60,85,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(-r * 0.4, 0, r * 0.38, -Math.PI * 0.42, Math.PI * 0.42); ctx.stroke();
+      ctx.strokeStyle = 'rgba(40,60,85,0.35)'; for (i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(r * (0.0 + i * 0.16), 0, r * 0.2, -Math.PI * 0.5, Math.PI * 0.5); ctx.stroke(); }
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-r * 0.66, -r * 0.1, r * 0.11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#10151A'; ctx.beginPath(); ctx.arc(-r * 0.68, -r * 0.1, r * 0.06, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2A3B4D'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-r * 1.0, r * 0.08); ctx.lineTo(-r * 0.86, r * 0.1); ctx.stroke();
+    }
+  }
+
   function drawShape(kind, r, gold) {
     var i;
+    if (BADS.indexOf(kind) >= 0) { drawBad(kind, r); return; }
     if (kind === 'hallabong') {
       ctx.fillStyle = bodyFill(r, gold, '#FFD27A', '#F5A21B', '#D9780A');
       ctx.beginPath(); ctx.ellipse(0, r * 0.08, r, r * 0.88, 0, 0, Math.PI * 2); ctx.fill();
@@ -544,6 +613,11 @@ html.p916 .head { position: relative; z-index: 25; }
       ctx.globalAlpha = 0.18; ctx.fillStyle = C.gold; ctx.beginPath(); ctx.arc(0, 0, r * 1.65 * pulse, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 0.26; ctx.beginPath(); ctx.arc(0, 0, r * 1.3 * pulse, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
+    }
+    if (f.type === 'bad') {
+      var bp = reduce ? 1 : 0.5 + 0.5 * Math.sin(now / 140 + f.id);
+      ctx.globalAlpha = 0.22 + 0.22 * bp; ctx.strokeStyle = '#E5484D'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, r * 1.28, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
     }
     drawShape(f.kind, r, gold);
     ctx.restore();
@@ -673,10 +747,10 @@ html.p916 .head { position: relative; z-index: 25; }
   /* ---------- 생성 / 갱신 ---------- */
   function spawn() {
     var r = baseR(), lv = levelNow();
-    var gold = Math.random() < S.goldPct / 100, rr2 = gold ? r * 0.92 : r;
+    var roll = Math.random(), gold = roll < S.goldPct / 100, bad = !gold && S.badOn && roll < (S.goldPct + S.badPct) / 100, rr2 = gold ? r * 0.92 : r;
     var speed = H * (0.30 + Math.random() * 0.12) * speedMul(lv) * (gold ? 1.2 : 1);
     var x0 = rr2 + 8 + Math.random() * (W - 2 * rr2 - 16);
-    fruits.push({ x: x0, x0: x0, y: H * 0.03, r: rr2, vy: speed, type: gold ? 'gold' : 'normal', kind: KINDS[Math.floor(Math.random() * KINDS.length)], rot: (Math.random() - 0.5) * 0.8, spin: (Math.random() - 0.5) * 1.2, ph: Math.random() * 6, age: 0, id: nextId++ });
+    fruits.push({ x: x0, x0: x0, y: H * 0.03, r: rr2, vy: speed, type: gold ? 'gold' : (bad ? 'bad' : 'normal'), kind: bad ? BADS[Math.floor(Math.random() * BADS.length)] : KINDS[Math.floor(Math.random() * KINDS.length)], rot: (Math.random() - 0.5) * 0.8, spin: (Math.random() - 0.5) * 1.2, ph: Math.random() * 6, age: 0, id: nextId++ });
   }
   function spawnGap() { return S.spawn / (1 + S.stepPct / 100 * 0.64 * (levelNow() - 1)) * (0.8 + Math.random() * 0.4); }
 
@@ -688,6 +762,7 @@ html.p916 .head { position: relative; z-index: 25; }
   }
 
   function miss(f) {
+    if (f.type === 'bad') return; /* 방해물은 그냥 지나가면 괜찮아요 */
     if (f.special) { queue.unshift(f.idx); specialT = Math.min(specialT, 3); floats.push({ x: Math.max(40, Math.min(W - 40, f.x)), y: H - 30, text: '앗, 스페셜 놓침!', life: 0.9, size: 18, bad: true }); return; }
     var cost = f.type === 'gold' ? MISS.gold : MISS.normal;
     if (!S.lifeOn) { flash = 0.2; combo = 0; sfx.miss(); return; }
@@ -777,8 +852,19 @@ html.p916 .head { position: relative; z-index: 25; }
     flashW = Math.max(flashW, reduce ? 0.2 : 0.5);
     if (!reduce) for (var j = 0; j < 50; j++) { var aa = Math.random() * Math.PI * 2, ss = 120 + Math.random() * 320; parts.push({ x: W / 2, y: H * 0.7, vx: Math.cos(aa) * ss, vy: Math.sin(aa) * ss - 220, s: 3 + Math.random() * 4, life: 1.0 + Math.random() * 0.6, c: ['#FFD04D', '#fff', '#F28A1B', '#FF6FA8', '#6FD3FF'][j % 5], star: true, rot: 0 }); }
   }
+  function pickBad(f, idx) {
+    fruits.splice(idx, 1); badHits++;
+    var loss = Math.min(score, S.badPts); score -= loss; combo = 0;
+    if (S.lifeOn) life = Math.max(0, life - S.badLife);
+    flash = 0.4; shake = reduce ? 0 : 0.28; sfx.bad();
+    burst(f, reduce ? 0 : 12, ['#E5484D', '#2F3B45', '#9AA0A6']);
+    floats.push({ x: f.x, y: f.y - f.r, text: '-' + S.badPts, life: 0.9, size: 32, bad: true });
+    floats.push({ x: f.x, y: f.y + f.r * 0.9, text: '✖ 농산물이 아니에요!', life: 0.9, size: 15, bad: true });
+    updateHud();
+  }
   function pick(f, idx) {
     if (f.special) { pickSpecial(f, idx); return; }
+    if (f.type === 'bad') { pickBad(f, idx); return; }
     var gold = f.type === 'gold';
     combo++; maxCombo = Math.max(maxCombo, combo); hits++;
     var mult = comboMult(), pts = (gold ? PTS.gold : PTS.normal) * mult;
@@ -828,7 +914,7 @@ html.p916 .head { position: relative; z-index: 25; }
   function start() {
     score = 0; elapsed = 0; spawnT = 0.2; specialT = S.specialGap * (0.4 + Math.random() * 0.3); lastLevel = 1; life = LIFE_MAX; flash = 0; flashW = 0; shake = 0; slow = 0;
     fruits = []; parts = []; floats = []; rings = []; rays = []; banner = null; setBanner = null; lvFx = null;
-    combo = 0; maxCombo = 0; hits = 0; mask = 0; everMask = 0; setCount = 0; gotCount = 0; cleared = false; lastMult = 1; queue = shuffle([0, 1, 2]);
+    badHits = 0; combo = 0; maxCombo = 0; hits = 0; mask = 0; everMask = 0; setCount = 0; gotCount = 0; cleared = false; lastMult = 1; queue = shuffle([0, 1, 2]);
     state = 'playing'; ovStart.hidden = true; ovResult.hidden = true;
     last = performance.now(); updateHud(); requestAnimationFrame(loop);
   }
@@ -859,8 +945,8 @@ html.p916 .head { position: relative; z-index: 25; }
   }
   function rankOf(sc) { var n = 1; recs().forEach(function (r) { if (r.score > sc) n++; }); return n; }
   $('btnCsv').addEventListener('click', function () {
-    var rows = [['시간', '이름', '점수', '미션성공', '레벨', '스페셜', '수확', '최고콤보']];
-    recs().forEach(function (r) { rows.push([new Date(r.t).toLocaleString('ko-KR'), r.name, r.score, r.ok ? 'O' : 'X', r.level, r.sp, r.hits, r.cb]); });
+    var rows = [['시간', '이름', '점수', '미션성공', '레벨', '스페셜', '수확', '최고콤보', '방해물']];
+    recs().forEach(function (r) { rows.push([new Date(r.t).toLocaleString('ko-KR'), r.name, r.score, r.ok ? 'O' : 'X', r.level, r.sp, r.hits, r.cb, r.bad || 0]); });
     var csv = '﻿' + rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     var d = new Date(); a.download = '황금농산물따기_기록_' + d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2) + '.csv';
@@ -917,8 +1003,8 @@ html.p916 .head { position: relative; z-index: 25; }
     var box = $('rSpecials'); box.innerHTML = '';
     SPECIALS.forEach(function (s, i) { var im = document.createElement('img'); im.className = 'thumb' + ((everMask & (1 << i)) ? '' : ' off'); im.src = s.src; im.alt = s.name; box.appendChild(im); });
     var sc = document.createElement('span'); sc.className = 'chip gold'; sc.textContent = '스페셜 ' + gotCount + '개'; box.appendChild(sc);
-    $('rStats').textContent = '속도 ' + lv + '단계 · 최고 콤보 ' + maxCombo + ' · 수확 ' + hits + '개';
-    var l = recs(); l.push({ t: Date.now(), name: playerName, score: score, ok: win, level: lv, sp: gotCount, hits: hits, cb: maxCombo }); saveRec(l);
+    $('rStats').textContent = '속도 ' + lv + '단계 · 최고 콤보 ' + maxCombo + ' · 수확 ' + hits + '개' + (S.badOn ? ' · 방해물 ' + badHits + '번' : '');
+    var l = recs(); l.push({ t: Date.now(), name: playerName, score: score, ok: win, level: lv, sp: gotCount, hits: hits, cb: maxCombo, bad: badHits }); saveRec(l);
     renderBoard(l.length - 1);
     var rk = $('rRank'); rk.innerHTML = '';
     rk.appendChild(document.createTextNode(win ? '창립 50주년 황금 농산물 수확 성공!' : '목표까지 ' + (TARGET - score) + '점 모자라요.'));
@@ -966,6 +1052,9 @@ html.p916 .head { position: relative; z-index: 25; }
     $('target').textContent = TARGET; $('capT').textContent = TARGET; $('hTitle').textContent = DURATION + '초 안에 ' + TARGET + '점!';
     $('lvWrap').setAttribute('aria-valuemax', TARGET);
     $('chN').textContent = '농산물 ' + PTS.normal + '점'; $('chG').textContent = '황금 ' + PTS.gold + '점';
+    $('chB').textContent = '⚠ 방해물 -' + S.badPts + '점'; $('chB').style.display = S.badOn ? '' : 'none';
+    $('ruleBad').textContent = S.badOn ? '비닐봉지·농약병·장화·생선처럼 농산물이 아닌 물건은 누르면 ' + S.badPts + '점 감점' + (S.lifeOn ? '되고 생명력도 ' + S.badLife + ' 줄어요' : '돼요') + '. 그냥 떨어지게 두면 괜찮아요!' : '이번 설정에서는 방해물이 나오지 않아요.';
+    $('ruleBad').previousElementSibling.style.display = S.badOn ? '' : 'none'; $('ruleBad').style.display = S.badOn ? '' : 'none';
     $('chS').textContent = '스페셜 상품 ' + PTS.special + '점'; $('chS').style.display = S.specialOn ? '' : 'none';
     $('ruleScore').textContent = '농산물 ' + PTS.normal + '점, 황금 농산물 ' + PTS.gold + '점이에요.';
     $('ruleSp').textContent = S.specialOn ? '위탁가공 상품 3종(골드키위 양갱·레몬100·발라먹차)이 가끔 떨어져요. 따면 특별 효과와 함께 ' + PTS.special + '점!' : '이번 설정에서는 스페셜 상품이 나오지 않아요.';
@@ -1000,15 +1089,20 @@ html.p916 .head { position: relative; z-index: 25; }
     ['missG', '놓칠 때 감소 (황금)', '', ''],
     ['healG', '황금 획득 시 회복', '', ''],
     ['healS', '스페셜 획득 시 회복', '', ''],
+    ['방해물'],
+    ['badOn', '방해물 사용', '', '비닐봉지·농약병·장화·생선·타이어·깡통처럼 농산물이 아닌 물건이 떨어져요. 누르면 감점!'],
+    ['badPct', '방해물 등장 확률', '%', '떨어지는 물건 중 방해물의 비율'],
+    ['badPts', '누르면 감점', '점', '점수는 0점 아래로 내려가지 않아요'],
+    ['badLife', '누르면 생명력 감소', '', '생명력을 끈 경우에는 적용되지 않아요'],
     ['화면 방향 (사이니지)'],
     ['rot', '회전 출력', '', '세로형 사이니지로 HDMI 복제할 때 사용해요. 사이니지의 화면 회전 방향과 맞춰 주세요 (0=사용 안 함, 90=시계방향, 270=반시계방향)'],
     ['보안'],
     ['pin', '관리자 PIN (숫자 4~8자리)', '', '']
   ];
   var PRESETS = {
-    easy: { levels: 4, startSpeed: 85, stepPct: 15, spawn: 0.5, goldPct: 15, missN: 3, missG: 5 },
-    normal: { levels: 5, startSpeed: 100, stepPct: 22, spawn: 0.42, goldPct: 12, missN: 5, missG: 8 },
-    hard: { levels: 5, startSpeed: 115, stepPct: 32, spawn: 0.34, goldPct: 10, missN: 8, missG: 12 }
+    easy: { levels: 4, startSpeed: 85, stepPct: 15, spawn: 0.5, goldPct: 15, missN: 3, missG: 5, badPct: 10, badPts: 2, badLife: 5 },
+    normal: { levels: 5, startSpeed: 100, stepPct: 22, spawn: 0.42, goldPct: 12, missN: 5, missG: 8, badPct: 15, badPts: 3, badLife: 8 },
+    hard: { levels: 5, startSpeed: 115, stepPct: 32, spawn: 0.34, goldPct: 10, missN: 8, missG: 12, badPct: 22, badPts: 5, badLife: 12 }
   };
   var adm = $('adm'), admInputs = {};
   (function buildAdmin() {
@@ -1019,7 +1113,7 @@ html.p916 .head { position: relative; z-index: 25; }
       var lb = document.createElement('label'); lb.htmlFor = 'ad_' + key; lb.textContent = f[1] + (f[2] ? ' (' + f[2] + ')' : '');
       var inp = document.createElement('input'); inp.id = 'ad_' + key;
       if (key === 'rot') { inp = document.createElement('select'); inp.id = 'ad_rot'; [['0', '사용 안 함'], ['90', '90° 시계방향'], ['270', '270° 반시계방향']].forEach(function (v) { var op = document.createElement('option'); op.value = v[0]; op.textContent = v[1]; inp.appendChild(op); }); }
-      else if (key === 'specialOn' || key === 'lifeOn') inp.type = 'checkbox';
+      else if (key === 'specialOn' || key === 'lifeOn' || key === 'badOn') inp.type = 'checkbox';
       else if (key === 'pin') { inp.type = 'text'; inp.inputMode = 'numeric'; inp.maxLength = 8; }
       else { inp.type = 'number'; inp.min = LIMITS[key][0]; inp.max = LIMITS[key][1]; inp.step = LIMITS[key][2]; inp.inputMode = 'decimal'; }
       inp.addEventListener('input', sumUp); inp.addEventListener('change', sumUp);
