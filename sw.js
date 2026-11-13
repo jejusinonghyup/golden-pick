@@ -1,5 +1,5 @@
 /* 오프라인 실행용 서비스 워커. 파일을 고쳐 다시 올릴 때는 VERSION 숫자를 올려 주세요. */
-var VERSION = 'golden-pick-v1';
+var VERSION = 'golden-pick-v2';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
