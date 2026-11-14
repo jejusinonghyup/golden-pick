@@ -240,7 +240,6 @@ html.p916 .head { position: relative; z-index: 25; }
         <h2 id="hTitle">15초 안에 50점!</h2>
         <p>떨어지는 농산물을 터치(클릭)해서 <b class="gt">50</b>점 이상 모으면 <b>미션 성공</b>! 시간이 갈수록 빨라져요.</p>
         <div class="chips"><span class="chip" id="chN">농산물 1점</span><span class="chip gold" id="chG">황금 5점</span><span class="chip sp" id="chS">스페셜 상품 10점</span><span class="chip bad" id="chB">⚠ 방해물 -3점</span></div>
-        <label class="fld"><span>이름(선택)</span><input id="inName" type="text" maxlength="8" autocomplete="off" placeholder="비워도 시작돼요"></label>
         <button class="btn" id="btnStart" type="button">게임 시작 (Space)</button>
       </div>
     </div>
@@ -1017,17 +1016,14 @@ html.p916 .head { position: relative; z-index: 25; }
 
   /* ---------- 시작 / 다음 도전자 ---------- */
   function begin() {
-    var name = $('inName').value.trim();
-    playerName = name || ('참가자 ' + (recs().length + 1));
+    playerName = '참가자 ' + (recs().length + 1);
     ac(); start();
   }
   function goStart(clear) {
     ovResult.hidden = true; ovStart.hidden = false; state = 'ready';
-    if (clear) $('inName').value = '';
-    updateHud(); draw(performance.now()); $('inName').focus();
+    updateHud(); draw(performance.now()); $('btnStart').focus();
   }
   $('btnStart').addEventListener('click', begin);
-  $('inName').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); begin(); } });
   $('btnAgain').addEventListener('click', function () { ac(); start(); });
   $('btnNext').addEventListener('click', function () { goStart(true); });
   document.addEventListener('keydown', function (e) {
